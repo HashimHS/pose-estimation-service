@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package imagepipeline;
 
+option java_multiple_files = true;
+option objc_class_prefix = "HLW";
+
 // Ping-related messages
 message PingRequest {
     int32 seq = 1;
@@ -19,90 +22,22 @@ message PingRequest {
     bytes packedbits = 4;
   }
   
-  // Region-related messages
-  message Region {
-    int32 x = 1;
-    int32 y = 2;
-    int32 w = 3;
-    int32 h = 4;
-  }
-  
-  // Image-related messages
-  message Image {
-    string image_format = 1;
-    bytes image_data = 2;
-  }
-  
-  // XYZ-related messages
-  message Point {
-    float x = 1;
-    float y = 2;
-    float z = 3;
-  }
-
-  // PointCloud-related messages
-  message Points {
-    repeated Point point = 1;
-  }
-
-  // Pose-related messages
-  message Pose {
-    repeated float position = 1;
-    repeated float orientation = 2;
-  }
-  
-  // Request and reply messages for object detection and pose detection
-  message PromptObjectDetectionRequest {
-    string api_key = 1;
-    string prompt = 2;
-    Image image = 3;
-  }
-
-  // Request message for object detection
-  message ObjectDetectionRequest {
-    string api_key = 1;
-    Image image = 2;
-  }
-  
-  // Reply message for object detection
-  message ObjectDetectionReply {
-    repeated Mask masks = 1;
-    repeated Region regions = 2;
-    repeated string label = 3;
-  }
-
-  // Request message for pose detection
-  message PoseDetectionRequest {
-    string api_key = 1;
-    string prompt = 2;
-    Image rgb = 3;
-    Image depth = 4;
-    repeated float intrinsics = 5;
-    float box_threshold = 6;
-  }
-  
   // Request message for pose detection using point cloud
-  message PointPoseDetectionRequest {
+  message SegTrackingRequest {
     string api_key = 1;
     string prompt = 2;
-    Image rgb = 3;
-    Points points = 4;
-    float box_threshold = 5;
+    bytes rgb = 3;
+    float box_threshold = 4;
   }
   
   // Reply message for pose detection
-  message PoseDetectionReply {
+  message SegTrackingReply {
     repeated Mask masks = 1;
-    repeated Region regions = 2;
-    repeated string label = 3;
-    repeated Pose pose = 4;
+    repeated string label = 2;
   }
 
 // Service definition
 service ImageModelPipeline {
     rpc Ping(PingRequest) returns (PingReply) {}
-    rpc PromptObjectDetection(PromptObjectDetectionRequest) returns (ObjectDetectionReply) {}
-    rpc ObjectDetection(ObjectDetectionRequest) returns (ObjectDetectionReply) {}
-    rpc PoseDetection(PoseDetectionRequest) returns (PoseDetectionReply) {}
-    rpc PointPoseDetection(PointPoseDetectionRequest) returns (PoseDetectionReply) {}
+    rpc SegTracking(stream SegTrackingRequest) returns (stream SegTrackingReply) {}
 }
