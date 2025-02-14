@@ -47,6 +47,10 @@ RUN useradd -rm -d /home/ubuntu -s /bin/bash -u 1001 ubuntu
 WORKDIR /app
 COPY src/ /app
 
+# Download weights by running bash script
+RUN bash /app/gdino_checkpoints/download_ckpts.sh
+RUN bash /app/checkpoints/download_ckpts.sh
+
 # Install segment_anything package in editable mode
 RUN python -m pip install -e .
 
@@ -54,6 +58,6 @@ RUN python -m pip install -e .
 RUN python -m pip install --no-build-isolation -e grounding_dino
 
 USER ubuntu
-# ENV NVIDIA_DRIVER_CAPABILITIES=all
 
+ENV NVIDIA_DRIVER_CAPABILITIES=all
 CMD [ "python", "tracking.py" ]
