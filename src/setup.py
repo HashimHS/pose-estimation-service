@@ -17,8 +17,8 @@ AUTHOR_EMAIL = "segment-anything@meta.com"
 LICENSE = "Apache 2.0"
 
 # Read the contents of README file
-with open("README.md", "r", encoding="utf-8") as f:
-    LONG_DESCRIPTION = f.read()
+# with open("README.md", "r", encoding="utf-8") as f:
+#     LONG_DESCRIPTION = f.read()
 
 # Required dependencies
 REQUIRED_PACKAGES = [
@@ -33,21 +33,8 @@ REQUIRED_PACKAGES = [
 
 EXTRA_PACKAGES = {
     "notebooks": [
-        "matplotlib>=3.9.1",
-        "jupyter>=1.0.0",
-        "opencv-python>=4.7.0",
-        "eva-decord>=0.6.1",
     ],
     "interactive-demo": [
-        "Flask>=3.0.3",
-        "Flask-Cors>=5.0.0",
-        "av>=13.0.0",
-        "dataclasses-json>=0.6.7",
-        "eva-decord>=0.6.1",
-        "gunicorn>=23.0.0",
-        "imagesize>=1.4.1",
-        "pycocotools>=2.0.8",
-        "strawberry-graphql>=0.243.0",
     ],
     "dev": [
         "black==24.2.0",
@@ -158,8 +145,6 @@ setup(
     name=NAME,
     version=VERSION,
     description=DESCRIPTION,
-    long_description=LONG_DESCRIPTION,
-    long_description_content_type="text/markdown",
     url=URL,
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
