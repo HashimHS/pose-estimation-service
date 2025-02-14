@@ -26,13 +26,13 @@ class Sam_Model:
             torch.backends.cudnn.allow_tf32 = True
 
         # init sam image predictor and video predictor model
-        sam2_checkpoint = "./checkpoints/sam2.1_hiera_large.pt"
-        model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
+        SAM2_CHECKPOINT = "./checkpoints/sam2.1_hiera_large.pt"
+        SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
+        # GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
+        # GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print("device", self.device)
 
-        self.video_predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
-        sam2_image_model = build_sam2(model_cfg, sam2_checkpoint, device=self.device)
+        sam2_image_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
         self.sam2_predictor = SAM2ImagePredictor(sam2_image_model)
         # self.mask_dict = MaskDictionaryModel(promote_type = "mask", mask_name = f"mask_{image_base_name}.npy")
 
@@ -40,9 +40,8 @@ class Sam_Model:
         model_id = "IDEA-Research/grounding-dino-tiny"
         self.processor = AutoProcessor.from_pretrained(model_id)
         self.grounding_model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
-        
-        self.ann_frame_idx = 0
-        
+        print("device", self.device)
+                
     def init_predict(self, rgb, prompt, box_threshold=0.5):
         # run Grounding DINO on the image
         inputs = self.processor(images=rgb, text=prompt, return_tensors="pt").to(self.device)
@@ -102,6 +101,7 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
         self.model = Sam_Model()
         self.api_keys = api_keys
         self.lock = threading.Lock()
+        print("Model loaded, waiting for requests...")
         pass
 
     def Ping(self, request: pipeline_pb2.PingRequest, context)->pipeline_pb2.PingReply:
@@ -146,8 +146,8 @@ def serve():
     pipeline_pb2_grpc.add_ImageModelPipelineServicer_to_server(service, server)
     server.add_insecure_port("[::]:" + port)
     server.start()
-    
     print("Server started, listening on " + port)
+    
     server.wait_for_termination()
 
 if __name__ == "__main__":
