@@ -145,6 +145,7 @@ def serve():
     service = SegTracking_Service(api_keys=set(api_keys.split(",")))
     pipeline_pb2_grpc.add_ImageModelPipelineServicer_to_server(service, server)
     server.add_insecure_port("[::]:" + port)
+    print("Starting server on port " + port)
     server.start()
     print("Server started, listening on " + port)
     
