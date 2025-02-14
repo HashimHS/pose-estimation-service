@@ -32,11 +32,13 @@ class Sam_Model:
         # GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
+        print("Loading SAM2 model...")
         sam2_image_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
         self.sam2_predictor = SAM2ImagePredictor(sam2_image_model)
         # self.mask_dict = MaskDictionaryModel(promote_type = "mask", mask_name = f"mask_{image_base_name}.npy")
 
         # init grounding dino model from huggingface
+        print("Loading Grounding DINO model...")
         model_id = "IDEA-Research/grounding-dino-tiny"
         self.processor = AutoProcessor.from_pretrained(model_id)
         self.grounding_model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
@@ -98,6 +100,7 @@ class Sam_Model:
 class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
     def __init__(self, api_keys):
 
+        print("Loading model...")
         self.model = Sam_Model()
         self.api_keys = api_keys
         self.lock = threading.Lock()
@@ -143,9 +146,9 @@ def serve():
     api_keys = os.environ.get("API_KEYS", "test")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     service = SegTracking_Service(api_keys=set(api_keys.split(",")))
+    print("Starting server on port " + port)
     pipeline_pb2_grpc.add_ImageModelPipelineServicer_to_server(service, server)
     server.add_insecure_port("[::]:" + port)
-    print("Starting server on port " + port)
     server.start()
     print("Server started, listening on " + port)
     
