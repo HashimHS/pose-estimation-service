@@ -30,10 +30,10 @@ RUN python -m pip install --upgrade pip setuptools wheel numpy \
     opencv-python transformers supervision pycocotools addict yapf timm
 
 # Install segment_anything package in editable mode
-RUN python -m pip install -e sam2
+RUN python -m pip install -e src/sam2
 
 # Install grounding dino 
-RUN python -m pip install --no-build-isolation -e grounding_dino
+RUN python -m pip install --no-build-isolation -e src/grounding_dino
 RUN pip install grpcio protobuf pyransac3d transformations scikit-learn
 
 RUN mkdir /app
