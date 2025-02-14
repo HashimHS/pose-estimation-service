@@ -9,6 +9,8 @@ import supervision as sv
 from sam2.build_sam import build_sam2_video_predictor, build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection 
+from grounding_dino.groundingdino.util.inference import load_model, load_image, predict
+from torchvision.ops import box_convert
 from concurrent import futures
 import logging
 import threading
@@ -28,20 +30,24 @@ class Sam_Model:
         # init sam image predictor and video predictor model
         SAM2_CHECKPOINT = "./checkpoints/sam2.1_hiera_large.pt"
         SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
-        # GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
-        # GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
+        GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
+        GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         print("Loading SAM2 model...")
         sam2_image_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
         self.sam2_predictor = SAM2ImagePredictor(sam2_image_model)
-        # self.mask_dict = MaskDictionaryModel(promote_type = "mask", mask_name = f"mask_{image_base_name}.npy")
 
         # init grounding dino model from huggingface
         print("Loading Grounding DINO model...")
-        model_id = "IDEA-Research/grounding-dino-tiny"
-        self.processor = AutoProcessor.from_pretrained(model_id)
-        self.grounding_model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
+        # model_id = "IDEA-Research/grounding-dino-tiny"
+        # self.processor = AutoProcessor.from_pretrained(model_id)
+        # self.grounding_model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
+        self.grounding_model = load_model(
+            model_config_path=GROUNDING_DINO_CONFIG, 
+            model_checkpoint_path=GROUNDING_DINO_CHECKPOINT,
+            device=self.device
+        )
         print("device", self.device)
                 
     def init_predict(self, rgb, prompt, box_threshold=0.5):
@@ -49,17 +55,29 @@ class Sam_Model:
         inputs = self.processor(images=rgb, text=prompt, return_tensors="pt").to(self.device)
         with torch.no_grad():
             outputs = self.grounding_model(**inputs)
-        results = self.processor.post_process_grounded_object_detection(
-            outputs,
-            inputs.input_ids,
+        # results = self.processor.post_process_grounded_object_detection(
+        #     outputs,
+        #     inputs.input_ids,
+        #     box_threshold=box_threshold,
+        #     text_threshold=0.3,
+        #     target_sizes=[rgb.size[::-1]]
+        # )
+
+        boxes, confidences, objects = predict(
+            model=self.grounding_model,
+            image=rgb,
+            caption=prompt,
             box_threshold=box_threshold,
             text_threshold=0.3,
-            target_sizes=[rgb.size[::-1]]
         )
         
-        input_boxes = results[0]["boxes"].cpu().numpy()
-        confidences = results[0]["scores"].cpu().numpy().tolist()
-        objects = results[0]["labels"]
+        # input_boxes = results[0]["boxes"].cpu().numpy()
+        # confidences = results[0]["scores"].cpu().numpy().tolist()
+        # objects = results[0]["labels"]
+
+        h, w, _ = rgb.shape
+        boxes = boxes * torch.Tensor([w, h, w, h])
+        input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
 
         # prompt SAM image predictor to get the mask for the object
         self.ann_frame_idx = 0
