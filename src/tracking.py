@@ -8,14 +8,11 @@ import numpy as np
 import supervision as sv
 from sam2.build_sam import build_sam2_video_predictor, build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
-from utils.mask_dictionary_model import MaskDictionaryModel, ObjectInfo
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection 
 from concurrent import futures
 import logging
 import threading
 import os
-
-from pose_estimator import POSE, estimate_pose
 import torch
 
 class Sam_Model:
