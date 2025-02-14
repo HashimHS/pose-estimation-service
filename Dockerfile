@@ -43,7 +43,7 @@ RUN useradd -rm -d /home/ubuntu -s /bin/bash -u 1001 ubuntu
 # RUN wget 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth' -O /home/ubuntu/.cache/torch/hub/checkpoints/sam_vit_l_0b3195.pth
 # RUN chown -R ubuntu:ubuntu /home/ubuntu/.cache
 
-USER ubuntu
+# USER ubuntu
 WORKDIR /app
 COPY src/ /app
 
@@ -53,6 +53,7 @@ RUN python -m pip install -e sam2
 # Install grounding dino 
 RUN python -m pip install --no-build-isolation -e grounding_dino
 
+USER ubuntu
 # ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 CMD [ "python", "tracking.py" ]
