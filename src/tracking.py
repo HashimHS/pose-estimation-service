@@ -9,13 +9,27 @@ import supervision as sv
 from sam2.build_sam import build_sam2_video_predictor, build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection 
-from grounding_dino.groundingdino.util.inference import load_model, load_image, predict
+from grounding_dino.groundingdino.util.inference import load_model, predict
+import grounding_dino.groundingdino.datasets.transforms as T
 from torchvision.ops import box_convert
 from concurrent import futures
 import logging
 import threading
 import os
 import torch
+
+def load_image(image_source):
+    transform = T.Compose(
+        [
+            T.RandomResize([800], max_size=1333),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
+
+    image = np.asarray(image_source)
+    image_transformed, _ = transform(image_source, None)
+    return image, image_transformed
 
 class Sam_Model:
     def __init__(self):
@@ -49,7 +63,20 @@ class Sam_Model:
             device=self.device
         )
         print("device", self.device)
-                
+    
+    def load_image(self, image_path):
+        transform = T.Compose(
+            [
+                T.RandomResize([800], max_size=1333),
+                T.ToTensor(),
+                T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
+        image_source = Image.open(image_path).convert("RGB")
+        image = np.asarray(image_source)
+        image_transformed, _ = transform(image_source, None)
+        return image, image_transformed
+    
     def init_predict(self, rgb, prompt, box_threshold=0.5):
         # run Grounding DINO on the image
         # inputs = self.processor(images=rgb, text=prompt, return_tensors="pt").to(self.device)
@@ -63,9 +90,10 @@ class Sam_Model:
         #     target_sizes=[rgb.size[::-1]]
         # )
 
+        image_source, image = load_image(rgb)
         boxes, confidences, objects = predict(
             model=self.grounding_model,
-            image=rgb,
+            image=image,
             caption=prompt,
             box_threshold=box_threshold,
             text_threshold=0.3,
@@ -75,13 +103,13 @@ class Sam_Model:
         # confidences = results[0]["scores"].cpu().numpy().tolist()
         # objects = results[0]["labels"]
 
-        h, w, _ = rgb.shape
+        h, w, _ = image_source.shape
         boxes = boxes * torch.Tensor([w, h, w, h])
         input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
 
         # prompt SAM image predictor to get the mask for the object
         self.ann_frame_idx = 0
-        self.sam2_predictor.set_image(np.array(rgb.convert("RGB")))
+        self.sam2_predictor.set_image(image_source)
 
         masks, scores, logits = self.sam2_predictor.predict(
             point_coords=None,
@@ -139,13 +167,13 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
                 return pipeline_pb2.PoseDetectionReply()
 
             if len(ids) == 0: #or len(ids) < no_of_objects/2:
-                masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)), request.prompt, request.box_threshold)
+                masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)).convert("RGB"), request.prompt, request.box_threshold)
                 label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
                 no_of_objects = np.max(no_of_objects, len(ids))
                 print("Detected objects: ", phrases)
 
             with self.lock:
-                rgb = Image.open(BytesIO(request.rgb))
+                rgb = Image.open(BytesIO(request.rgb)).convert("RGB")
                 
                 results = self.model.track(rgb, masks, ids)
                 masks = [results[id][0] for id in results.keys()]
