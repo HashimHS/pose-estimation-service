@@ -169,7 +169,7 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
             if len(ids) == 0: #or len(ids) < no_of_objects/2:
                 masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)).convert("RGB"), request.prompt, request.box_threshold)
                 label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
-                no_of_objects = np.max(no_of_objects, len(ids))
+                no_of_objects = max(no_of_objects, len(ids))
                 print("Detected objects: ", phrases)
 
             with self.lock:
