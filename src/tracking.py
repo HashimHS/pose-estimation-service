@@ -52,9 +52,9 @@ class Sam_Model:
                 
     def init_predict(self, rgb, prompt, box_threshold=0.5):
         # run Grounding DINO on the image
-        inputs = self.processor(images=rgb, text=prompt, return_tensors="pt").to(self.device)
-        with torch.no_grad():
-            outputs = self.grounding_model(**inputs)
+        # inputs = self.processor(images=rgb, text=prompt, return_tensors="pt").to(self.device)
+        # with torch.no_grad():
+        #     outputs = self.grounding_model(**inputs)
         # results = self.processor.post_process_grounded_object_detection(
         #     outputs,
         #     inputs.input_ids,
