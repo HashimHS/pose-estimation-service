@@ -148,6 +148,8 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
                 rgb = Image.open(BytesIO(request.rgb))
                 
                 results = self.model.track(rgb, masks, ids)
+                masks = [results[id][0] for id in results.keys()]
+                ids = [id for id in results.keys()]
 
                 masks_pb = []
                 phrases = []
