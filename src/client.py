@@ -17,6 +17,8 @@ class MLDetector:
             response = stub.Ping(pipeline_pb2.PingRequest(seq=1))
             if response.seq != 1:
                 raise Exception("Cannot connect to the detection server")
+            else:
+                print("Connection established")
 
     def track(self, rgb_stream, prompt="", box_threshold=0.3):
         """
@@ -33,20 +35,26 @@ class MLDetector:
             labels: list of string labels extracted from prompt corresponding to each detected object
         """
 
-        # self.predictions = self.detect_raw_pose(prompt, pipeline_pb2.Image(image_format="jpg", image_data=bytes(rgb_rawdata)), pipeline_pb2.Image(image_format="png", image_data=bytes(depth_rawdata)), intrinsics, box_threshold)
         channel = grpc.insecure_channel(self.endpoint)
         stub = pipeline_pb2_grpc.ImageModelPipelineStub(channel)
-        for response in stub.PoseTracking(self.gen_pose_tracking_request(rgb_stream, prompt, box_threshold)):
+
+        for predictions in stub.SegTracking(self.gen_seg_tracking_request(rgb_stream, prompt, box_threshold)):
             
             masks = []
             scores = []
-            for i in range(len(self.predictions.masks)):
-                    mask = self.predictions.masks[i]
+            for i in range(len(predictions.masks)):
+                    mask = predictions.masks[i]
                     masks.append(np.unpackbits(np.frombuffer(mask.packedbits, dtype=np.uint8), count=mask.w*mask.h).reshape(mask.h, mask.w))
                     scores.append(mask.score)
                                         
-            yield masks, scores, self.predictions.label
+            yield masks, scores, predictions.label
+
+    def gen_seg_tracking_request(self, rgb_stream, prompt, box_threshold):
+        while True:
+            rgb_image = rgb_stream.get_image()
+            rgb_image = cv.imencode('.jpg', rgb_image)[1].tobytes()
+            yield pipeline_pb2.SegTrackingRequest(api_key=self.api_key, rgb=rgb_image, prompt=prompt, box_threshold=box_threshold)
 
     def get_image(self):
-        rgb_image, depth_image, _  = self.stream.get_image()
+        rgb_image  = self.stream.get_image()
         return rgb_image

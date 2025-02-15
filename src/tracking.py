@@ -129,14 +129,15 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
         return pipeline_pb2.PingReply(seq=request.seq)
 
     def SegTracking(self, request_iterator, context):
-        if request.api_key not in self.api_keys:
-            context.set_code(grpc.StatusCode.PERMISSION_DENIED)
-            context.set_details("Invalid api key")
-            return pipeline_pb2.PoseDetectionReply()
         ids = []
         no_of_objects = 0
 
         for request in request_iterator:
+            if request.api_key not in self.api_keys:
+                context.set_code(grpc.StatusCode.PERMISSION_DENIED)
+                context.set_details("Invalid api key")
+                return pipeline_pb2.PoseDetectionReply()
+
             if len(ids) == 0: #or len(ids) < no_of_objects/2:
                 masks, scores, phrases, ids = self.model.init_predict(self, Image.open(BytesIO(request.rgb)), request.prompt, request.box_threshold)
                 label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
