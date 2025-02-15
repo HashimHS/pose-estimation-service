@@ -99,9 +99,9 @@ class Sam_Model:
             text_threshold=0.3,
         )
         
-        # input_boxes = results[0]["boxes"].cpu().numpy()
-        # confidences = results[0]["scores"].cpu().numpy().tolist()
-        # objects = results[0]["labels"]
+        if len(boxes) == 0:
+            print("No objects detected")
+            return [], [], [], []
 
         h, w, _ = image_source.shape
         boxes = boxes * torch.Tensor([w, h, w, h])
