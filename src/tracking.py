@@ -192,7 +192,7 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
             yield pipeline_pb2.SegTrackingReply(masks=masks_pb, label=phrases)
 
 def serve():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG, force=True)
     port = os.environ.get("GRPC_PORT", "50051")
     api_keys = os.environ.get("API_KEYS", "test")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
