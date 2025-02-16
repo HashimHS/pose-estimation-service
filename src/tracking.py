@@ -185,7 +185,7 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
             # for id in results.keys():
                 # mask, score = results[id]
             for id, mask, score in zip(ids, masks, scores):
-                cpu_mask = mask.cpu().numpy()
+                cpu_mask = mask #.cpu().numpy()
                 mask = pipeline_pb2.Mask(w = cpu_mask.shape[1], h=cpu_mask.shape[0], score=score, packedbits=np.packbits(cpu_mask.flatten()).tobytes())
                 masks_pb.append(mask)
                 phrases.append(label_dict[id])
