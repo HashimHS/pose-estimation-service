@@ -178,7 +178,7 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
             results = self.model.track(rgb, masks, ids)
             masks = [results[id][0] for id in results.keys()]
             ids = [id for id in results.keys()]
-            logging.info("Tracked objects: " + {label_dict[id] for id in ids})
+            logging.info("Tracked objects: " + str({label_dict[id] for id in ids}))
 
             masks_pb = []
             phrases = []
