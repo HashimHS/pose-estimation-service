@@ -48,12 +48,12 @@ class Sam_Model:
         GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        print("Loading SAM2 model...")
+        logging.info("Loading SAM2 model...")
         sam2_image_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
         self.sam2_predictor = SAM2ImagePredictor(sam2_image_model)
 
         # init grounding dino model from huggingface
-        print("Loading Grounding DINO model...")
+        logging.info("Loading Grounding DINO model...")
         # model_id = "IDEA-Research/grounding-dino-tiny"
         # self.processor = AutoProcessor.from_pretrained(model_id)
         # self.grounding_model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
@@ -62,7 +62,7 @@ class Sam_Model:
             model_checkpoint_path=GROUNDING_DINO_CHECKPOINT,
             device=self.device
         )
-        print("device", self.device)
+        logging.info("device", self.device)
     
     def load_image(self, image_path):
         transform = T.Compose(
@@ -100,7 +100,7 @@ class Sam_Model:
         )
         
         if len(boxes) == 0:
-            print("No objects detected")
+            logging.info("No objects detected")
             return [], [], [], []
 
         h, w, _ = image_source.shape
@@ -146,11 +146,11 @@ class Sam_Model:
 class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
     def __init__(self, api_keys):
 
-        print("Loading model...")
+        logging.info("Loading model...")
         self.model = Sam_Model()
         self.api_keys = api_keys
         self.lock = threading.Lock()
-        print("Model loaded, waiting for requests...")
+        logging.info("Model loaded, waiting for requests...")
         pass
 
     def Ping(self, request: pipeline_pb2.PingRequest, context)->pipeline_pb2.PingReply:
@@ -170,37 +170,38 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
                 masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)).convert("RGB"), request.prompt, request.box_threshold)
                 label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
                 no_of_objects = max(no_of_objects, len(ids))
-                print("Detected objects: ", phrases)
+                logging.info("Detected objects: ", phrases)
 
-            with self.lock:
-                rgb = Image.open(BytesIO(request.rgb)).convert("RGB")
-                
-                results = self.model.track(rgb, masks, ids)
-                masks = [results[id][0] for id in results.keys()]
-                ids = [id for id in results.keys()]
-                [print("Object ", id, " tracked") for id in ids]
+            # with self.lock:
+            rgb = Image.open(BytesIO(request.rgb)).convert("RGB")
+            
+            results = self.model.track(rgb, masks, ids)
+            masks = [results[id][0] for id in results.keys()]
+            ids = [id for id in results.keys()]
+            logging.info("Tracked objects: " + {label_dict[id] for id in ids})
 
-                masks_pb = []
-                phrases = []
-                for id in results.keys():
-                    mask, score = results[id]
-                    cpu_mask = mask.cpu().numpy()
-                    mask = pipeline_pb2.Mask(w = cpu_mask.shape[1], h=cpu_mask.shape[0], score=score, packedbits=np.packbits(cpu_mask.flatten()).tobytes())
-                    masks_pb.append(mask)
-                    phrases.append(label_dict[id])
+            masks_pb = []
+            phrases = []
+            for id in results.keys():
+                mask, score = results[id]
+                cpu_mask = mask.cpu().numpy()
+                mask = pipeline_pb2.Mask(w = cpu_mask.shape[1], h=cpu_mask.shape[0], score=score, packedbits=np.packbits(cpu_mask.flatten()).tobytes())
+                masks_pb.append(mask)
+                phrases.append(label_dict[id])
 
-                yield pipeline_pb2.SegTrackingReply(masks=masks_pb, label=phrases)
+            yield pipeline_pb2.SegTrackingReply(masks=masks_pb, label=phrases)
 
 def serve():
+    logging.basicConfig(level=logging.DEBUG)
     port = os.environ.get("GRPC_PORT", "50051")
     api_keys = os.environ.get("API_KEYS", "test")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     service = SegTracking_Service(api_keys=set(api_keys.split(",")))
-    print("Starting server on port " + port)
+    logging.info("Starting server on port " + port)
     pipeline_pb2_grpc.add_ImageModelPipelineServicer_to_server(service, server)
     server.add_insecure_port("[::]:" + port)
     server.start()
-    print("Server started, listening on " + port)
+    logging.info("Server started, listening on " + port)
     
     server.wait_for_termination()
 
