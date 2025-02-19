@@ -128,7 +128,7 @@ class Sam_Model:
     def track(self, rgb, masks, ids):
         results = {}
         
-        self.sam2_predictor.set_image(np.array(rgb.convert("RGB")))
+        self.sam2_predictor.set_image(rgb)
         for (id, mask) in zip(ids, masks):
             try:
                 mask, score, logits = self.sam2_predictor.predict(
@@ -166,27 +166,26 @@ class SegTracking_Service(pipeline_pb2_grpc.ImageModelPipelineServicer):
                 context.set_details("Invalid api key")
                 return pipeline_pb2.PoseDetectionReply()
 
-            # if len(ids) == 0: #or len(ids) < no_of_objects/2:
-            masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)).convert("RGB"), request.prompt, request.box_threshold)
-            label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
-            # no_of_objects = max(no_of_objects, len(ids))
-            logging.info("Detected objects: ", phrases)
+            if len(ids) == 0: #or len(ids) < no_of_objects/2:
+                masks, scores, phrases, ids = self.model.init_predict(Image.open(BytesIO(request.rgb)).convert("RGB"), request.prompt, request.box_threshold)
+                label_dict = {id: phrase for id, phrase in zip(ids, phrases)}  
+                no_of_objects = max(no_of_objects, len(ids))
+            #     logging.info(f"Detected objects: {phrases}")
 
             # with self.lock:
-                # rgb = Image.open(BytesIO(request.rgb)).convert("RGB")
-                
-                # results = self.model.track(rgb, masks, ids)
-                # masks = [results[id][0] for id in results.keys()]
-                # ids = [id for id in results.keys()]
-                # logging.info("Tracked objects: " + str({label_dict[id] for id in ids}))
+            rgb = np.asarray(Image.open(BytesIO(request.rgb)).convert("RGB"))
+            results = self.model.track(rgb, masks, ids)
+            masks = [results[id][0] for id in results.keys()]
+            ids = [id for id in results.keys()]
+            logging.info("Tracked objects: " + str({label_dict[id] for id in ids}))
 
             masks_pb = []
             phrases = []
-            # for id in results.keys():
-                # mask, score = results[id]
-            for id, mask, score in zip(ids, masks, scores):
-                cpu_mask = mask.astype(np.uint8)  #.cpu().numpy()
-                mask = pipeline_pb2.Mask(w = cpu_mask.shape[1], h=cpu_mask.shape[0], score=score, packedbits=np.packbits(cpu_mask.flatten()).tobytes())
+            for id in results.keys():
+                mask, score = results[id]
+            # for id, mask, score in zip(ids, masks, scores):
+                cpu_mask = np.array(mask > 0.5, dtype=np.uint8) #.cpu().numpy()
+                mask = pipeline_pb2.Mask(w = cpu_mask.shape[1], h=cpu_mask.shape[0], score=float(score), packedbits=np.packbits(cpu_mask.flatten()).tobytes())
                 masks_pb.append(mask)
                 phrases.append(label_dict[id])
 
